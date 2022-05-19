@@ -10,8 +10,8 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 {
     public class CastleImporter : EditorWindow
     {
-        MaterialLibrary currentLibrary;
-        string folderLocation;
+        public List<MaterialLibrary> currentLibraries;
+        string folderLocation = "StreamingAssets/Exports";
         string fileName;
 
         public string LastExportResult;
@@ -32,7 +32,8 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             fileName = GUILayout.TextField(fileName);
 
             GUILayout.Label("Current library");
-            currentLibrary = EditorGUILayout.ObjectField(obj: currentLibrary, objType: typeof(MaterialLibrary), true) as MaterialLibrary;
+            AddList(nameof(currentLibraries));
+            //currentLibrary = EditorGUILayout.ObjectField(obj: currentLibrary, objType: typeof(MaterialLibrary), true) as MaterialLibrary;
 
             if (GUILayout.Button("Import"))
             {
@@ -42,7 +43,12 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
         public void ImportBasedOnIdentifiers()
         {
-            currentLibrary.Setup();
+            MaterialLibrary.ClearLibrary();
+
+            foreach (MaterialLibrary library in currentLibraries)
+            {
+                library.Setup();
+            }
 
             List<string> ObjLines = new List<string>(System.IO.File.ReadAllLines(Application.dataPath + @"\" + folderLocation + @"\" + fileName + ".obj"));
 
@@ -221,7 +227,6 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
             void AssignCurrentValues()
             {
-                //ToDo: Check if valid
                 if (!isValid())
                 {
                     LastExportResult = "Error with file: Check console for warnings";
@@ -265,6 +270,13 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
                 LastExportResult = "Hopefully worked well";
             }
+        }
+
+        void AddList(string propertyName)
+        {
+            SerializedObject tihsScriptSerialized = new SerializedObject(this);
+            EditorGUILayout.PropertyField(tihsScriptSerialized.FindProperty(propertyName), true);
+            tihsScriptSerialized.ApplyModifiedProperties();
         }
 
         List<string> SepparateString(string input, string separator)

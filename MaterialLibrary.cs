@@ -9,11 +9,15 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
         public List<Material> MaterialAssignments;
 
-        public static Dictionary<string, Material> MaterialLibary;
-        public void Setup()
+        public static Dictionary<string, Material> MaterialLibary = new Dictionary<string, Material>();
+
+        public static void ClearLibrary()
         {
             MaterialLibary = new Dictionary<string, Material>();
+        }
 
+        public void Setup()
+        {
             foreach (Material material in MaterialAssignments)
             {
                 if (MaterialLibary.ContainsKey(material.name)) continue;

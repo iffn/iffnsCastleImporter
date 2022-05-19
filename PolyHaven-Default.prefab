@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 2472406345929004914}
   - component: {fileID: 6947168856246535256}
   m_Layer: 0
-  m_Name: MaterialLibrary
+  m_Name: PolyHaven-Default
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -27,6 +27,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 45.175476, y: -6.2697716, z: 53.483253}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
@@ -57,4 +58,4 @@ MonoBehaviour:
   - {fileID: 2100000, guid: b393391d709942b458a6ff13e915b6de, type: 2}
   - {fileID: 2100000, guid: 95a0813d8ca2ca046b9e8c694c454d4a, type: 2}
   - {fileID: 2100000, guid: 925bd39cb6a2270409d68d239b547a1d, type: 2}
-  - {fileID: 2100000, guid: d9f880d20429af34888a788d3ed4aa95, type: 2}
+  - {fileID: 2100000, guid: cf608947d117b0f409bb7e56a83493d2, type: 2}
