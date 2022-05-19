@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   MaterialAssignments:
   - {fileID: 2100000, guid: 5a23b4dd5b2eeca4eaad37fe597ae257, type: 2}
+  - {fileID: 2100000, guid: 7b8bdc9f07967ff48beac99223ce7559, type: 2}
