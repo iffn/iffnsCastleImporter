@@ -30,8 +30,8 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         void OnGUI()
         {
             GUILayout.Label("iffn's Castle Importer", EditorStyles.boldLabel);
-            
-            if(LinkedCollection == null)
+
+            if (LinkedCollection == null)
             {
                 GUILayout.Label("Libraries");
                 LinkedCollection = EditorGUILayout.ObjectField(obj: LinkedCollection, objType: typeof(LibraryCollection), true) as LibraryCollection;
@@ -57,7 +57,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
         string SelectFile()
         {
-            string defaultFolder = Application.dataPath ;
+            string defaultFolder = Application.dataPath;
 
             if (lastFilePath.Length > 0 && Directory.Exists(lastFilePath))
             {
@@ -66,7 +66,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
             string filePath = EditorUtility.OpenFilePanel(title: "Select import file", directory: defaultFolder, extension: "obj");
 
-            if(filePath.Length > 0)
+            if (filePath.Length > 0)
             {
                 lastFilePath = Path.GetDirectoryName(filePath);
             }
@@ -84,15 +84,15 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             }
 
             //List<string> ObjLines = new List<string>(System.IO.File.ReadAllLines(Application.dataPath + @"\" + folderLocation + @"\" + fileName + ".obj"));
-            List<string> ObjLines = new(File.ReadAllLines(filePath));
+            List<string> ObjLines = new List<string>(File.ReadAllLines(filePath));
 
             string fileName = Path.GetFileNameWithoutExtension(filePath);
 
             Transform outputObject = new GameObject(fileName).transform;
 
-            List<Vector3> v = new();
-            List<Vector2> vt = new();
-            List<int> f = new();
+            List<Vector3> v = new List<Vector3>();
+            List<Vector2> vt = new List<Vector2>();
+            List<int> f = new List<int>();
 
             GameObject currentObject = null;
             Mesh currentMesh = null;
@@ -102,7 +102,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
             Vector3 currentOffset = Vector3.zero;
 
-            List<Transform> Holders = new();
+            List<Transform> Holders = new List<Transform>();
 
             for (int i = 0; i < ObjLines.Count; i++)
             {
@@ -142,11 +142,11 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                         string identifier = "";
                         string content = "";
 
-                        if(options.Length == 1)
+                        if (options.Length == 1)
                         {
                             content = options[0];
                         }
-                        else if(options.Length == 2)
+                        else if (options.Length == 2)
                         {
                             identifier = options[0];
                             content = options[1];
@@ -167,14 +167,14 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                         }
                         else if (identifier.Equals("Local position"))
                         {
-                            string  withoutBracket = content.Substring(1, content.Length - 2);
-                            string[] axis = withoutBracket.Split(separator: ", ");
+                            string withoutBracket = content.Substring(1, content.Length - 2);
+                            string[] axis = withoutBracket.Split(separator: ", ".ToCharArray());
 
                             bool xCorrect = float.TryParse(axis[0], NumberStyles.Number, CultureInfo.InvariantCulture, out float x);
                             bool yCorrect = float.TryParse(axis[1], NumberStyles.Number, CultureInfo.InvariantCulture, out float y);
                             bool zCorrect = float.TryParse(axis[2], NumberStyles.Number, CultureInfo.InvariantCulture, out float z);
 
-                            if(xCorrect && yCorrect && zCorrect)
+                            if (xCorrect && yCorrect && zCorrect)
                             {
                                 currentOffset = new Vector3(x, y, z);
                                 currentObject.transform.localPosition = currentOffset;
@@ -190,36 +190,38 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                         }
                         else if (identifier.Equals("Hierarchy position"))
                         {
-                            string[] hierarchyIndexStrings = content.Split(separator: "-");
+                            string[] hierarchyIndexStrings = content.Split(separator: "-".ToCharArray());
 
                             int[] hierarchyIndexes = new int[hierarchyIndexStrings.Length];
 
-                            for(int j = 0; j < hierarchyIndexStrings.Length; j++)
+                            for (int j = 0; j < hierarchyIndexStrings.Length; j++)
                             {
                                 hierarchyIndexes[j] = int.Parse(hierarchyIndexStrings[j], CultureInfo.InvariantCulture) - 1;
                             }
 
-                            Transform parent = GetChildFromParent(hierarchyIndexes: hierarchyIndexes, parent: outputObject);
+                            Transform parent = GetChildFromParent(currentHierarchyIndexes: hierarchyIndexes, currentParent: outputObject);
 
                             //ToDo: Position
 
                             parent.name = currentObject.name;
                             currentObject.transform.parent = parent;
 
-                            Transform GetChildFromParent(int[] hierarchyIndexes, Transform parent)
+                            Transform GetChildFromParent(int[] currentHierarchyIndexes, Transform currentParent)
                             {
-                                Transform currentTransform = parent;
+                                Transform currentTransform = currentParent;
 
-                                if(hierarchyIndexes.Length > 1)
+                                /*
+                                if(currentHierarchyIndexes.Length > 1)
                                 {
-                                    int i = 0;
+                                    int k = 0;
                                 }
+                                */
 
-                                for (int i = 0; i < hierarchyIndexes.Length; i++)
+                                for (int k = 0; k < currentHierarchyIndexes.Length; k++)
                                 {
-                                    List<Transform> children = new();
+                                    List<Transform> children = new List<Transform>();
 
-                                    foreach(Transform child in currentTransform)
+                                    foreach (Transform child in currentTransform)
                                     {
                                         if (Holders.Contains(child))
                                         {
@@ -227,7 +229,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                                         }
                                     }
 
-                                    int currentIndex = hierarchyIndexes[i];
+                                    int currentIndex = currentHierarchyIndexes[k];
 
                                     int missingChildren = currentIndex + 1 - children.Count;
 
@@ -240,9 +242,9 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                                     {
                                         for (int j = 0; j < missingChildren; j++)
                                         {
-                                            GameObject newObject = new();
+                                            GameObject newObject = new GameObject();
                                             Transform newTransform = newObject.transform;
-                                            
+
                                             newTransform.parent = currentTransform;
                                             newTransform.SetSiblingIndex(children.Count);
                                             children.Add(newTransform);
@@ -250,7 +252,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                                         }
                                     }
 
-                                    currentTransform = children[hierarchyIndexes[i]];
+                                    currentTransform = children[currentHierarchyIndexes[k]];
                                 }
 
                                 return currentTransform;
@@ -297,7 +299,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                         return;
                     }
 
-                        
+
                 }
                 else if (currentLine.StartsWith("vt "))
                 {
@@ -433,18 +435,16 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
                 previoiusVertexCount += v.Count;
 
-
-
-                v = new List<Vector3>();
-                vt = new List<Vector2>();
-                f = new List<int>();
-
                 currentMesh.RecalculateNormals();
                 currentMesh.RecalculateTangents();
                 currentMesh.RecalculateBounds();
 
                 if (hasMeshCollider) currentObject.AddComponent(typeof(MeshCollider));
 
+                //Reset values for next object
+                v = new List<Vector3>();
+                vt = new List<Vector2>();
+                f = new List<int>();
 
                 LastExportResult = "Hopefully worked well";
             }
@@ -455,30 +455,6 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             SerializedObject tihsScriptSerialized = new SerializedObject(this);
             EditorGUILayout.PropertyField(tihsScriptSerialized.FindProperty(propertyName), true);
             tihsScriptSerialized.ApplyModifiedProperties();
-        }
-
-        List<string> SepparateString(string input, string separator)
-        {
-            List<string> returnList = new List<string>();
-
-            if (!input.Contains(separator)) return null;
-
-            int separatorLocation = input.IndexOf(separator);
-
-            returnList.Add(input.Substring(0, separatorLocation));
-
-            string rest = input.Substring(separatorLocation + separator.Length);
-
-            if (rest.Contains(separator))
-            {
-                returnList.AddRange(SepparateString(input: rest, separator: separator));
-            }
-            else
-            {
-                returnList.Add(rest);
-            }
-
-            return returnList;
         }
     }
 }
