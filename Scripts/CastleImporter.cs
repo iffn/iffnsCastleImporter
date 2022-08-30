@@ -7,6 +7,7 @@ using UnityEngine;
 using System.Linq;
 using System.Globalization;
 using System.IO;
+using System;
 
 namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 {
@@ -55,6 +56,13 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             }
         }
 
+        void AddList(string propertyName)
+        {
+            SerializedObject tihsScriptSerialized = new SerializedObject(this);
+            EditorGUILayout.PropertyField(tihsScriptSerialized.FindProperty(propertyName), true);
+            tihsScriptSerialized.ApplyModifiedProperties();
+        }
+
         string SelectFile()
         {
             string defaultFolder = Application.dataPath;
@@ -74,7 +82,21 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             return filePath;
         }
 
-        public void ImportBasedOnIdentifiers(string filePath)
+        void ImportBasedOnIdentifiers(string filePath)
+        {
+            ResetLibraries();
+
+            List<string> ObjLines = GetLinesFromPath(filePath);
+
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            List<ImportMeshInfo> meshInfo = GenerateMeshInfoFromObjFile(ObjLines);
+
+            GenerateObjectFromInfo(fileName, meshInfo);
+
+            return;
+        }
+
+        void ResetLibraries()
         {
             MaterialLibrary.ClearLibrary();
 
@@ -82,380 +104,183 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             {
                 library.Setup();
             }
+        }
 
-            //List<string> ObjLines = new List<string>(System.IO.File.ReadAllLines(Application.dataPath + @"\" + folderLocation + @"\" + fileName + ".obj"));
-            List<string> ObjLines = new List<string>(File.ReadAllLines(filePath));
+        List<string> GetLinesFromPath(string filePath)
+        {
+            return new List<string>(File.ReadAllLines(filePath));
+        }
 
-            string fileName = Path.GetFileNameWithoutExtension(filePath);
+        List<ImportMeshInfo> GenerateMeshInfoFromObjFile(List<string> objLines)
+        {
+            //Obj files share a common triangle index count while the one in Unity is separate
+            int currentOffset = 0;
 
-            Transform outputObject = new GameObject(fileName).transform;
+            List<ImportMeshInfo> returnList = new List<ImportMeshInfo>();
 
-            List<Vector3> v = new List<Vector3>();
-            List<Vector2> vt = new List<Vector2>();
-            List<int> f = new List<int>();
+            ImportMeshInfo currentMeshInfo = new ImportMeshInfo("");
+            returnList.Add(currentMeshInfo);
 
-            GameObject currentObject = null;
-            Mesh currentMesh = null;
-            MeshRenderer currentRenderer;
-            bool hasMeshCollider = false;
-            int previoiusVertexCount = 0;
 
-            Vector3 currentOffset = Vector3.zero;
-
-            List<Transform> Holders = new List<Transform>();
-
-            for (int i = 0; i < ObjLines.Count; i++)
+            foreach (string currentLine in objLines)
             {
-                string currentLine = ObjLines[i];
-
                 if (currentLine.StartsWith("o "))
                 {
-                    if (currentObject != null)
-                    {
-                        AssignCurrentValues();
-                    }
+                    currentOffset += currentMeshInfo.verticies.Count;
 
-                    currentLine = currentLine.Remove(0, 2);
+                    string identifier = currentLine.Remove(0, 2);
 
-                    currentObject = new GameObject(currentLine);
+                    currentMeshInfo = new ImportMeshInfo(identifier);
+                    returnList.Add(currentMeshInfo);
 
-                    string titleSeparator = " - ";
-
-                    string[] optionStrings = currentLine.Split(separator: titleSeparator, options: System.StringSplitOptions.RemoveEmptyEntries);
-
-                    MeshFilter currentMeshFilter = currentObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
-
-                    currentMesh = new Mesh();
-
-                    currentMesh.name = "imported obj mesh";
-
-                    currentMeshFilter.sharedMesh = currentMesh;
-
-                    currentOffset = Vector3.zero;
-
-                    foreach (string option in optionStrings)
-                    {
-                        string optionSeparator = " = ";
-
-                        string[] options = option.Split(separator: optionSeparator, options: System.StringSplitOptions.RemoveEmptyEntries);
-
-                        string identifier = "";
-                        string content = "";
-
-                        if (options.Length == 1)
-                        {
-                            content = options[0];
-                        }
-                        else if (options.Length == 2)
-                        {
-                            identifier = options[0];
-                            content = options[1];
-                        }
-
-                        if (identifier.Equals("Material"))
-                        {
-                            if (!content.Equals("Invisible"))
-                            {
-                                currentRenderer = currentObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
-
-                                currentRenderer.material = MaterialLibrary.GetMaterialFromIdentifier(identifier: options[1]);
-                            }
-                        }
-                        else if (identifier.Equals("Collider"))
-                        {
-                            hasMeshCollider = content.Equals("True") || content.Equals("true");
-                        }
-                        else if (identifier.Equals("Local position"))
-                        {
-                            string withoutBracket = content.Substring(1, content.Length - 2);
-                            string[] axis = withoutBracket.Split(separator: ", ".ToCharArray());
-
-                            bool xCorrect = float.TryParse(axis[0], NumberStyles.Number, CultureInfo.InvariantCulture, out float x);
-                            bool yCorrect = float.TryParse(axis[1], NumberStyles.Number, CultureInfo.InvariantCulture, out float y);
-                            bool zCorrect = float.TryParse(axis[2], NumberStyles.Number, CultureInfo.InvariantCulture, out float z);
-
-                            if (xCorrect && yCorrect && zCorrect)
-                            {
-                                currentOffset = new Vector3(x, y, z);
-                                currentObject.transform.localPosition = currentOffset;
-                            }
-                            else
-                            {
-                                Debug.LogWarning($"Error: Local position string {content} could not be converted into a Vector3");
-                            }
-                        }
-                        else if (identifier.Equals("Name"))
-                        {
-                            currentObject.name = content;
-                        }
-                        else if (identifier.Equals("Hierarchy position"))
-                        {
-                            string[] hierarchyIndexStrings = content.Split(separator: "-".ToCharArray());
-
-                            int[] hierarchyIndexes = new int[hierarchyIndexStrings.Length];
-
-                            for (int j = 0; j < hierarchyIndexStrings.Length; j++)
-                            {
-                                hierarchyIndexes[j] = int.Parse(hierarchyIndexStrings[j], CultureInfo.InvariantCulture) - 1;
-                            }
-
-                            Transform parent = GetChildFromParent(currentHierarchyIndexes: hierarchyIndexes, currentParent: outputObject);
-
-                            //ToDo: Position
-
-                            parent.name = currentObject.name;
-                            currentObject.transform.parent = parent;
-
-                            Transform GetChildFromParent(int[] currentHierarchyIndexes, Transform currentParent)
-                            {
-                                Transform currentTransform = currentParent;
-
-                                /*
-                                if(currentHierarchyIndexes.Length > 1)
-                                {
-                                    int k = 0;
-                                }
-                                */
-
-                                for (int k = 0; k < currentHierarchyIndexes.Length; k++)
-                                {
-                                    List<Transform> children = new List<Transform>();
-
-                                    foreach (Transform child in currentTransform)
-                                    {
-                                        if (Holders.Contains(child))
-                                        {
-                                            children.Add(child);
-                                        }
-                                    }
-
-                                    int currentIndex = currentHierarchyIndexes[k];
-
-                                    int missingChildren = currentIndex + 1 - children.Count;
-
-                                    if (missingChildren < 0)
-                                    {
-                                        missingChildren = 0;
-                                    }
-
-                                    else if (missingChildren > 0)
-                                    {
-                                        for (int j = 0; j < missingChildren; j++)
-                                        {
-                                            GameObject newObject = new GameObject();
-                                            Transform newTransform = newObject.transform;
-
-                                            newTransform.parent = currentTransform;
-                                            newTransform.SetSiblingIndex(children.Count);
-                                            children.Add(newTransform);
-                                            Holders.Add(newTransform);
-                                        }
-                                    }
-
-                                    currentTransform = children[currentHierarchyIndexes[k]];
-                                }
-
-                                return currentTransform;
-                            }
-                        }
-                    }
-
-                    //Cleanup
-                    if (currentObject.transform.parent == null)
-                    {
-                        currentObject.transform.parent = outputObject;
-                    }
-                    else
-                    {
-                        currentObject.transform.parent.name = currentObject.name;
-                    }
-
-                    currentObject.name = currentLine;
                 }
                 else if (currentLine.StartsWith("v "))
                 {
-                    if (currentObject == null)
-                    {
-                        LastExportResult = "Error with file: Check console for warnings";
-                        Debug.LogWarning("Error: should contain o Object name line before declaing vertices");
-                        return;
-                    }
-
-                    currentLine = currentLine.Remove(0, 2);
-
-                    string[] substrings = currentLine.Split(' ');
-
-                    bool xCorrect = float.TryParse(substrings[0], NumberStyles.Number, CultureInfo.InvariantCulture, out float x);
-                    bool yCorrect = float.TryParse(substrings[1], NumberStyles.Number, CultureInfo.InvariantCulture, out float y);
-                    bool zCorrect = float.TryParse(substrings[2], NumberStyles.Number, CultureInfo.InvariantCulture, out float z);
-
-                    if (xCorrect && yCorrect && zCorrect)
-                    {
-                        v.Add(new Vector3(-x, y, z) - currentOffset);
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"Error: {currentLine} could not be converted into a Vector3");
-                        return;
-                    }
-
-
+                    string info = currentLine.Remove(0, 2);
+                    currentMeshInfo.AddVertexInfo(info, ImportMeshInfo.OriginType.ObjFile);
                 }
                 else if (currentLine.StartsWith("vt "))
                 {
-                    if (currentObject == null)
-                    {
-                        LastExportResult = "Error with file: Check console for warnings";
-                        Debug.LogWarning("Error: should contain o Object name line before declaing UVs");
-                        return;
-                    }
-
-                    currentLine = currentLine.Remove(0, 3);
-
-                    string[] substrings = currentLine.Split(' ');
-
-                    bool xCorrect = float.TryParse(substrings[0], NumberStyles.Number, CultureInfo.InvariantCulture, out float x);
-                    bool yCorrect = float.TryParse(substrings[1], NumberStyles.Number, CultureInfo.InvariantCulture, out float y);
-
-                    if (xCorrect && yCorrect)
-                    {
-                        vt.Add(new Vector2(x, y));
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"Error: {currentLine} could not be converted into a Vector2");
-                        return;
-                    }
+                    string info = currentLine.Remove(0, 3);
+                    currentMeshInfo.AddUV0Info(info, ImportMeshInfo.OriginType.ObjFile);
                 }
                 else if (currentLine.StartsWith("f "))
                 {
-                    if (currentObject == null)
-                    {
-                        LastExportResult = "Error with file: Check console for warnings";
-                        Debug.LogWarning("Error: should contain o Object name line before declaing triangles");
-                        return;
-                    }
-
-                    currentLine = currentLine.Remove(0, 2);
-
-                    string[] substrings = currentLine.Split(' ');
-
-                    string[] index0 = substrings[0].Split('/');
-                    string[] index1 = substrings[1].Split('/');
-                    string[] index2 = substrings[2].Split('/');
-
-                    bool index0Correct = int.TryParse(index0[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int i0);
-                    bool index1Correct = int.TryParse(index1[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int i1);
-                    bool index2Correct = int.TryParse(index2[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int i2);
-
-                    //triangle index order needs to be 0, 2, 1 for the correct normal orientation
-                    f.Add(i0 - 1 - previoiusVertexCount);
-                    f.Add(i2 - 1 - previoiusVertexCount);
-                    f.Add(i1 - 1 - previoiusVertexCount);
-
-                    /*
-                    foreach (string sub in substrings)
-                    {
-                        string[] number = sub.Split('/');
-
-                        f.Add(int.Parse(number[0]) - 1 - previoiusVertexCount);
-                    }
-                    */
+                    string info = currentLine.Remove(0, 2);
+                    currentMeshInfo.AddTriangleInfo(info, ImportMeshInfo.OriginType.ObjFile, currentOffset);
                 }
             }
 
-            AssignCurrentValues();
-
-            bool isValid()
+            for (int i = 0; i < returnList.Count; i++)
             {
-                if (v.Count == 0)
+                if (returnList[i].IsEmpty)
                 {
-                    Debug.LogWarning("Error: Mesh has no info on verticies");
-                    return false;
+                    returnList.RemoveAt(i);
+                    i--;
                 }
+            } 
 
-                if (f.Count == 0)
-                {
-                    Debug.LogWarning("Error: Mesh has no triangle information");
-                    return false;
-                }
-
-                if (f.Max() > v.Count - 1)
-                {
-                    Debug.LogWarning("Error: triangles reference vertex that doesn't exist");
-                    return false;
-                }
-
-                for (int i = 0; i < f.Count; i += 3)
-                {
-                    if (v[f[i]] == v[f[i + 1]]
-                       || v[f[i]] == v[f[i + 2]]
-                       || v[f[i + 1]] == v[f[i + 2]])
-                    {
-                        Debug.LogWarning("Error: triangle pair does not have unique vertecies");
-                        return false;
-                    }
-                    if (float.IsInfinity(v[f[i]].x) || float.IsInfinity(v[f[i]].y) || float.IsInfinity(v[f[i]].z))
-                    {
-                        Debug.LogWarning("Error: triangle references infinity vertex");
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-
-            void AssignCurrentValues()
-            {
-                if (!isValid())
-                {
-                    LastExportResult = "Error with file: Check console for warnings";
-                    Debug.LogWarning("Error identified");
-                    return;
-                }
-
-                if (currentMesh == null)
-                {
-                    LastExportResult = "Error with code: Check console for warnings";
-                    Debug.LogWarning("Error: Current mesh is null");
-
-                    return;
-                }
-
-                if (v.Count > 65535)
-                {
-                    //Avoid vertex limit
-                    //https://answers.unity.com/questions/471639/mesh-with-more-than-65000-vertices.html
-                    currentMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-                }
-
-                currentMesh.vertices = v.ToArray();
-                currentMesh.uv = vt.ToArray();
-                currentMesh.triangles = f.ToArray();
-
-                previoiusVertexCount += v.Count;
-
-                currentMesh.RecalculateNormals();
-                currentMesh.RecalculateTangents();
-                currentMesh.RecalculateBounds();
-
-                if (hasMeshCollider) currentObject.AddComponent(typeof(MeshCollider));
-
-                //Reset values for next object
-                v = new List<Vector3>();
-                vt = new List<Vector2>();
-                f = new List<int>();
-
-                LastExportResult = "Hopefully worked well";
-            }
+            return returnList;
         }
 
-        void AddList(string propertyName)
+        void GenerateObjectFromInfo(string fileName, List<ImportMeshInfo> meshInfo)
         {
-            SerializedObject tihsScriptSerialized = new SerializedObject(this);
-            EditorGUILayout.PropertyField(tihsScriptSerialized.FindProperty(propertyName), true);
-            tihsScriptSerialized.ApplyModifiedProperties();
+            Transform outputObject = new GameObject(fileName).transform;
+
+
+            //Create hierarchy:
+            foreach(ImportMeshInfo info in meshInfo)
+            {
+                if (!info.IsValid) continue;
+
+                Transform currentTransform = GetTransformInHierarchy(mainParent: outputObject, HierarchyIndexes: info.hierarchyIndexes);
+
+                info.linkedTransform = currentTransform;
+
+                currentTransform.name = info.name;
+                currentTransform.localPosition = info.localPosition;
+            }
+            
+            //Assign meshes
+            foreach (ImportMeshInfo info in meshInfo)
+            {
+                Transform newTransform = new GameObject().transform;
+
+                if(info.linkedTransform != null)
+                {
+                    newTransform.parent = info.linkedTransform;
+                }
+                else
+                {
+                    newTransform.parent = outputObject;
+                }
+                
+                newTransform.localPosition = Vector3.zero;
+                newTransform.name = info.completeIdentifier;
+                GenerateMeshFromInfo(currentTransform: newTransform, info: info, includeLocalOffset: true);
+            }
         }
+
+        Transform GetTransformInHierarchy(Transform mainParent, List<int> HierarchyIndexes)
+        {
+            Transform currentParent = mainParent;
+
+            foreach (int index in HierarchyIndexes)
+            {
+                int missingChildren = index - currentParent.childCount;
+
+                for (int i = 0; i < missingChildren; i++)
+                {
+                    Transform newChild = new GameObject().transform;
+                    newChild.parent = currentParent;
+                    newChild.localPosition = Vector3.zero;
+                    newChild.localRotation = Quaternion.identity;
+                }
+
+                currentParent = currentParent.GetChild(index - 1);
+            }
+
+            return currentParent;
+        }
+
+        void GenerateMeshFromInfo(Transform currentTransform, ImportMeshInfo info, bool includeLocalOffset)
+        {
+            GameObject currentGameObject = currentTransform.gameObject;
+
+            //Mesh
+            MeshFilter meshFilter = currentGameObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
+
+            Mesh mesh = new Mesh(); //Note: Only for editor use. For ingame, use a mesh pool to avoid a memory leak.
+            mesh.name = "Imported castle mesh";
+
+            if (info.verticies.Count > 65535)
+            {
+                //Avoid vertex limit
+                //https://answers.unity.com/questions/471639/mesh-with-more-than-65000-vertices.html
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            }
+
+            Vector3[] vertexArray;
+
+            if (includeLocalOffset)
+            {
+                vertexArray = new Vector3[info.verticies.Count];
+
+                Vector3 offset = -info.localPosition;
+
+                for (int i = 0; i < info.verticies.Count; i++)
+                {
+                    vertexArray[i] = info.verticies[i] + offset;
+                }
+            }
+            else
+            {
+                vertexArray = info.verticies.ToArray();
+            }
+
+            mesh.vertices = vertexArray;
+            mesh.triangles = info.triangles.ToArray();
+            mesh.uv = info.uv0.ToArray();
+            
+            mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+
+            meshFilter.sharedMesh = mesh;
+
+            //Material
+            if (info.MaterialIdentifier.Length != 0 && !info.MaterialIdentifier.Equals("Invisible"))
+            {
+                MeshRenderer currentRenderer = currentGameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
+
+                currentRenderer.material = MaterialLibrary.GetMaterialFromIdentifier(identifier: info.MaterialIdentifier);
+            }
+
+            //Collider
+            if(info.collider) currentGameObject.AddComponent(typeof(MeshCollider));
+        }
+
+        
     }
 }
 #endif
