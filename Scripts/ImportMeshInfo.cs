@@ -1,14 +1,8 @@
-using JetBrains.Annotations;
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text.RegularExpressions;
 using UnityEngine;
-using UnityEngine.WSA;
-using static ImportMeshInfo;
-using static UnityEditor.Timeline.TimelinePlaybackControls;
 
 public class ImportMeshInfo
 {
@@ -29,10 +23,10 @@ public class ImportMeshInfo
     {
         get
         {
-            if(completeIdentifier.Length != 0) return false;
-            if(verticies.Count != 0) return false;
-            if(triangles.Count != 0) return false;
-            if(uv0.Count != 0) return false;
+            if (completeIdentifier.Length != 0) return false;
+            if (verticies.Count != 0) return false;
+            if (triangles.Count != 0) return false;
+            if (uv0.Count != 0) return false;
 
             return true;
         }
@@ -76,7 +70,7 @@ public class ImportMeshInfo
                 }
             }
 
-            foreach(Vector3 vertex in verticies)
+            foreach (Vector3 vertex in verticies)
             {
                 if (float.IsInfinity(vertex.x) || float.IsInfinity(vertex.y) || float.IsInfinity(vertex.z))
                 {
@@ -123,7 +117,7 @@ public class ImportMeshInfo
 
             verticies.AddRange(currentInfo.verticies);
 
-            foreach(int triangle in currentInfo.triangles)
+            foreach (int triangle in currentInfo.triangles)
             {
                 triangles.Add(triangle + currentTriangleIndex);
             }
@@ -133,7 +127,7 @@ public class ImportMeshInfo
 
             int missingUVs = currentInfo.verticies.Count - currentInfo.uv0.Count;
 
-            for(int i = 0; i<missingUVs; i++)
+            for (int i = 0; i < missingUVs; i++)
             {
                 uv0.Add(Vector2.zero);
             }
@@ -148,22 +142,33 @@ public class ImportMeshInfo
 
         completeIdentifier = InfoLine;
 
-        List<string> optionStrings = InfoLine.Split(" - ").ToList();
+        string elementSeparator = " - ";
+
+        List<string> optionStrings = Regex.Split(InfoLine, elementSeparator).ToList();
 
         foreach (string option in optionStrings)
         {
             string optionSeparator = " = ";
 
-            string[] options = option.Split(separator: optionSeparator, options: System.StringSplitOptions.RemoveEmptyEntries);
+            List<string> options = Regex.Split(option, optionSeparator).ToList();
+
+            //Remove empties
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (options[i].Length != 0) continue;
+
+                options.RemoveAt(i);
+                i--;
+            }
 
             string identifier = "";
             string content = "";
 
-            if (options.Length == 1)
+            if (options.Count == 1)
             {
                 content = options[0];
             }
-            else if (options.Length == 2)
+            else if (options.Count == 2)
             {
                 identifier = options[0];
                 content = options[1];
@@ -261,7 +266,7 @@ public class ImportMeshInfo
 
         string[] axis = GetElementsAccordingToConversionType(parseString, originType);
 
-        if(axis.Length == 0)
+        if (axis.Length == 0)
         {
             Debug.LogWarning($"Error: Convertsion type {originType} not defined for Vector3");
             return Vector3.zero;
@@ -292,7 +297,7 @@ public class ImportMeshInfo
         string originalString = parseString;
 
         string[] axis;
-        
+
         switch (originType)
         {
             case OriginType.Unity:
@@ -301,7 +306,7 @@ public class ImportMeshInfo
             case OriginType.ObjFile:
                 //Format is: "a/a b/b c/c"
                 axis = parseString.Split(' ');
-                for(int i = 0; i<axis.Length; i++)
+                for (int i = 0; i < axis.Length; i++)
                 {
                     axis[i] = axis[i].Split('/')[0];
                 }
