@@ -8,24 +8,32 @@ using System.Linq;
 using System.Globalization;
 using System.IO;
 using System;
+using System.Xml.Linq;
 
 namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 {
     public class CastleImporter : EditorWindow
     {
-        //public List<MaterialLibrary> MaterialLibraries;
-
+        //Editor values
         [SerializeField] LibraryCollection LinkedCollection;
+        bool setAsStatic = true;
+        bool generateLightmap = true;
+        float hardAngle = 88;
+        float packMargin = 4;
+        float angleError = 8;
+        float areaError = 15;
 
+        //Runtime values
         public string LastExportResult;
         public GameObject LastExportObject;
+        UnwrapParam currentLightmapSettings;
 
         string lastFilePath = "";
 
         [MenuItem("Tools/iffns stuff/Castle Importer")]
         public static void ShowWindow()
         {
-            GetWindow(typeof(CastleImporter));
+            GetWindow(t: typeof(CastleImporter), utility: false, title: "Castle Importer");
         }
 
         void OnGUI()
@@ -44,9 +52,33 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                 GUILayout.Label("Libraries");
                 AddList(nameof(LinkedCollection));
 
+                setAsStatic = GUILayout.Toggle(setAsStatic, "Set as static");
+                generateLightmap = GUILayout.Toggle(generateLightmap, "Generate lightmap UVs");
+
+                if (generateLightmap)
+                {
+                    hardAngle = EditorGUILayout.Slider("  Hard angle (default = 88)", hardAngle, 0, 180);
+                    packMargin = EditorGUILayout.Slider("  Pack margin (default = 4)", packMargin, 0, 64);
+                    angleError = EditorGUILayout.Slider("  Angle error (default = 8)", angleError, 1, 75);
+                    areaError = EditorGUILayout.Slider("  Area error (default = 15)", areaError, 1, 75);
+                }
+
+                EditorGUILayout.HelpBox($"Note:{System.Environment.NewLine}You can use the Lightmap UV Generator tool to set them later.", MessageType.Info);
+
                 if (GUILayout.Button("Select file to import"))
                 {
                     string filePath = SelectFile();
+
+                    if (generateLightmap)
+                    {
+                        currentLightmapSettings = new UnwrapParam
+                        {
+                            hardAngle = hardAngle,
+                            packMargin = packMargin,
+                            angleError = angleError,
+                            areaError = areaError
+                        };
+                    }
 
                     if (File.Exists(filePath))
                     {
@@ -167,7 +199,6 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         {
             Transform outputObject = new GameObject(fileName).transform;
 
-
             //Create hierarchy:
             foreach(ImportMeshInfo info in meshInfo)
             {
@@ -199,6 +230,8 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                 newTransform.name = info.completeIdentifier;
                 GenerateMeshFromInfo(currentTransform: newTransform, info: info, includeLocalOffset: true);
             }
+
+            SetObjectAndAllChildrenToStatic(outputObject.gameObject);
         }
 
         Transform GetTransformInHierarchy(Transform mainParent, List<int> HierarchyIndexes)
@@ -266,6 +299,11 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
 
+            if (generateLightmap)
+            {
+                Unwrapping.GenerateSecondaryUVSet(mesh, currentLightmapSettings);
+            }
+
             meshFilter.sharedMesh = mesh;
 
             //Material
@@ -280,7 +318,15 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             if(info.collider) currentGameObject.AddComponent(typeof(MeshCollider));
         }
 
-        
+        void SetObjectAndAllChildrenToStatic(GameObject mainObject)
+        {
+            mainObject.isStatic = true;
+
+            foreach (Transform child in mainObject.GetComponentsInChildren<Transform>())
+            {
+                child.gameObject.isStatic = true;
+            }
+        }
     }
 }
 #endif
