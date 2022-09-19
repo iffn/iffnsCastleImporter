@@ -228,7 +228,10 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                 
                 newTransform.localPosition = Vector3.zero;
                 newTransform.name = info.completeIdentifier;
-                GenerateMeshFromInfo(currentTransform: newTransform, info: info, includeLocalOffset: true);
+
+                Vector3 offset = newTransform.InverseTransformPoint(outputObject.position)  ;
+
+                GenerateMeshFromInfo(currentTransform: newTransform, info: info, offset: offset);
             }
 
             SetObjectAndAllChildrenToStatic(outputObject.gameObject);
@@ -256,7 +259,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             return currentParent;
         }
 
-        void GenerateMeshFromInfo(Transform currentTransform, ImportMeshInfo info, bool includeLocalOffset)
+        void GenerateMeshFromInfo(Transform currentTransform, ImportMeshInfo info, Vector3 offset)
         {
             GameObject currentGameObject = currentTransform.gameObject;
 
@@ -275,11 +278,11 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
             Vector3[] vertexArray;
 
-            if (includeLocalOffset)
+            if (offset.magnitude > 0)
             {
                 vertexArray = new Vector3[info.verticies.Count];
 
-                Vector3 offset = -info.localPosition;
+                //Vector3 offset = -info.localPosition;
 
                 for (int i = 0; i < info.verticies.Count; i++)
                 {
