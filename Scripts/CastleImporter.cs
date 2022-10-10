@@ -17,7 +17,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         //Editor values
         [SerializeField] LibraryCollection LinkedCollection;
         bool setAsStatic = true;
-        bool generateLightmap = true;
+        bool generateLightmap = false;
         float hardAngle = 88;
         float packMargin = 4;
         float angleError = 8;
