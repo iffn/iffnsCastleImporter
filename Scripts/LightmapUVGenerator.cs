@@ -18,7 +18,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         //Runtime values
         public static int MeshesCalculated { get; private set; } = -1;
 
-        [MenuItem("Tools/iffns stuff/Lightmap UV generator")]
+        [MenuItem("Tools/iffnsStuff/CustomImporters/Lightmap UV generator")]
         public static void ShowWindow()
         {
             GetWindow(t: typeof(LightmapUVGEnerator), utility: false, title: "Lightmap UV generator");

@@ -30,7 +30,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 
         string lastFilePath = "";
 
-        [MenuItem("Tools/iffnsStuff/Castle Importer")]
+        [MenuItem("Tools/iffnsStuff/CustomImporters/Castle Importer")]
         public static void ShowWindow()
         {
             GetWindow(t: typeof(CastleImporter), utility: false, title: "Castle Importer");
