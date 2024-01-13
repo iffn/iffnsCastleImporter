@@ -4,11 +4,8 @@ using UnityEditor;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
-using System.Globalization;
+using UnityEngine.SceneManagement;
 using System.IO;
-using System;
-using System.Xml.Linq;
 
 namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 {
@@ -40,17 +37,21 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         {
             GUILayout.Label("iffn's Castle Importer", EditorStyles.boldLabel);
 
+            GUILayout.Label("Libraries");
             if (LinkedCollection == null)
             {
-                GUILayout.Label("Libraries");
                 LinkedCollection = EditorGUILayout.ObjectField(obj: LinkedCollection, objType: typeof(LibraryCollection), true) as LibraryCollection;
 
                 EditorGUILayout.HelpBox("Setup: Assign CastleLibraryCollection found in Asssets/iffnsStuff/CastleLibraryCollection", MessageType.Info);
             }
             else
             {
-                GUILayout.Label("Libraries");
                 AddList(nameof(LinkedCollection));
+
+                if (GUILayout.Button("Regenerate all castles"))
+                {
+                    RegenerateAllCastles();
+                }
 
                 setAsStatic = GUILayout.Toggle(setAsStatic, "Set as static");
                 generateLightmap = GUILayout.Toggle(generateLightmap, "Generate lightmap UVs");
@@ -84,6 +85,77 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                     {
                         ImportBasedOnIdentifiers(filePath: filePath);
                     }
+                }
+            }
+        }
+
+        void RegenerateAllCastles()
+        {
+            ResetLibraries();
+
+            //Get all children
+            List<Transform> allTransforms = AllTransforms();
+
+            //Get all CastleInfo
+            List<CastleInfo> castles = new List<CastleInfo>();
+
+            foreach(Transform child in allTransforms)
+            {
+                if (child.TryGetComponent<CastleInfo>(out var currentCastle))
+                {
+                    castles.Add(currentCastle);
+                }
+            }
+
+            //Find unique
+            List<Object> uniqueCastlesFiles = new List<Object>();
+
+            foreach(CastleInfo castle in castles)
+            {
+                Object saveFile = castle.SaveFile;
+
+                if (!uniqueCastlesFiles.Contains(saveFile)) uniqueCastlesFiles.Add(saveFile);
+            }
+
+            List<Transform> uniqueCastleTransforms = new List<Transform>();
+
+            //Generate meshes
+            foreach(Object uniqueCastleFile in uniqueCastlesFiles)
+            {
+                List<string> lines = new List<string>(File.ReadAllLines(AssetDatabase.GetAssetPath(uniqueCastleFile)));
+
+                List<ImportMeshInfo> meshInfo = GenerateMeshInfoFromObjFile(lines);
+
+                uniqueCastleTransforms.Add(GenerateObjectFromInfo(uniqueCastleFile.name, meshInfo));
+            }
+
+            List<bool> taken = new List<bool>(new bool[uniqueCastlesFiles.Count]);
+
+            //Assign meshes
+            foreach(CastleInfo castle in castles)
+            {
+                Object file = castle.SaveFile;
+
+                for(int i = 0; i<uniqueCastlesFiles.Count; i++)
+                {
+                    Object uniqueFile = uniqueCastlesFiles[i];
+
+                    if (uniqueFile != file) continue;
+
+                    Transform castleTransform;
+
+                    if (taken[i])
+                    {
+                        castleTransform = Instantiate(uniqueCastleTransforms[i]);
+                    }
+                    else
+                    {
+                        castleTransform = uniqueCastleTransforms[i];
+                        taken[i] = true;
+                    }
+
+                    castle.SetTransform(castleTransform);
+                    break;
                 }
             }
         }
@@ -195,7 +267,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             return returnList;
         }
 
-        void GenerateObjectFromInfo(string fileName, List<ImportMeshInfo> meshInfo)
+        Transform GenerateObjectFromInfo(string fileName, List<ImportMeshInfo> meshInfo)
         {
             Transform outputObject = new GameObject(fileName).transform;
 
@@ -235,6 +307,8 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             }
 
             SetObjectAndAllChildrenToStatic(outputObject.gameObject);
+
+            return outputObject;
         }
 
         Transform GetTransformInHierarchy(Transform mainParent, List<int> HierarchyIndexes)
@@ -314,7 +388,9 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             {
                 MeshRenderer currentRenderer = currentGameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
 
-                currentRenderer.material = MaterialLibrary.GetMaterialFromIdentifier(identifier: info.MaterialIdentifier);
+                Material material = MaterialLibrary.GetMaterialFromIdentifier(identifier: info.MaterialIdentifier);
+
+                currentRenderer.sharedMaterial = material;
             }
 
             //Collider
@@ -329,6 +405,23 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
             {
                 child.gameObject.isStatic = true;
             }
+        }
+
+        public static List<Transform> AllTransforms()
+        {
+            List<Transform> allTransforms = new List<Transform>();
+
+            foreach (GameObject rootObject in SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                //allTransforms.Add(rootObject.transform);
+
+                foreach (Transform child in rootObject.transform.GetComponentsInChildren<Transform>(true)) //Very important to add true to include inactive object
+                {
+                    allTransforms.Add(child);
+                }
+            }
+
+            return allTransforms;
         }
     }
 }
