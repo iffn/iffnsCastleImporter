@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.IO;
+using iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter.Helpers;
 
 namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
 {
@@ -15,6 +16,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         [SerializeField] LibraryCollection LinkedCollection;
         bool setAsStatic = true;
         bool generateLightmap = false;
+        bool addSelectMe = true;
         float hardAngle = 88;
         float packMargin = 4;
         float angleError = 8;
@@ -54,6 +56,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
                 }
 
                 setAsStatic = GUILayout.Toggle(setAsStatic, "Set as static");
+                addSelectMe = GUILayout.Toggle(addSelectMe, "Add select me script to top");
                 generateLightmap = GUILayout.Toggle(generateLightmap, "Generate lightmap UVs");
 
                 if (generateLightmap)
@@ -270,6 +273,8 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         Transform GenerateObjectFromInfo(string fileName, List<ImportMeshInfo> meshInfo)
         {
             Transform outputObject = new GameObject(fileName).transform;
+
+            if(addSelectMe) outputObject.gameObject.AddComponent<SelectMe>();
 
             //Create hierarchy:
             foreach(ImportMeshInfo info in meshInfo)
