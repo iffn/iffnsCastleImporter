@@ -30,7 +30,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         [MenuItem("Tools/iffnsStuff/CustomImporters/Castle Importer")]
         public static void ShowWindow()
         {
-            GetWindow(t: typeof(CastleImporter), utility: false, title: "Castle Importer");
+            GetWindow(typeof(CastleImporter), false, "Castle Importer");
         }
 
         void OnGUI()

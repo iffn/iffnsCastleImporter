@@ -21,7 +21,7 @@ namespace iffnsStuff.iffnsUnityTools.CastleBuilderTools.CastleImporter
         [MenuItem("Tools/iffnsStuff/CustomImporters/Lightmap UV generator")]
         public static void ShowWindow()
         {
-            GetWindow(t: typeof(LightmapUVGEnerator), utility: false, title: "Lightmap UV generator");
+            GetWindow(typeof(LightmapUVGEnerator), false, "Lightmap UV generator");
         }
 
         void OnGUI()
